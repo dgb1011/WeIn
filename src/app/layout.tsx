@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   description: "Transform your EMDR consultation experience with our integrated platform. Track progress, manage sessions, and achieve certification with ease.",
   keywords: "EMDR, consultation, tracking, certification, therapy, mental health",
   authors: [{ name: "BrainBased EMDR" }],
-  viewport: "width=device-width, initial-scale=1",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -35,4 +39,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
+} 

@@ -1,70 +1,70 @@
 import jwt from 'jsonwebtoken'
-import bcrypt from 'bcryptjs'
-import { prisma } from './db'
+import { NextRequest } from 'next/server'
+import { db } from './db'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
-const JWT_EXPIRES_IN = '7d'
 
 export interface JWTPayload {
   userId: string
   email: string
-  userType: 'STUDENT' | 'CONSULTANT' | 'ADMIN'
+  userType: string
 }
 
-export class AuthService {
-  static async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12)
-  }
+export function generateToken(payload: JWTPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+}
 
-  static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(password, hashedPassword)
+export function verifyToken(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload
+  } catch (error) {
+    return null
   }
+}
 
-  static generateToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
-  }
-
-  static verifyToken(token: string): JWTPayload | null {
-    try {
-      return jwt.verify(token, JWT_SECRET) as JWTPayload
-    } catch (error) {
+export async function getCurrentUser(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    
+    if (!token) {
       return null
     }
-  }
 
-  static async getUserFromToken(token: string) {
-    const payload = this.verifyToken(token)
-    if (!payload) return null
+    const payload = verifyToken(token)
+    if (!payload) {
+      return null
+    }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: payload.userId },
-      include: {
-        student: true,
-        consultant: true,
-        admin: true
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        userType: true,
+        status: true
       }
     })
 
     return user
+  } catch (error) {
+    console.error('Auth middleware error:', error)
+    return null
   }
 }
 
-export const authMiddleware = async (req: any, res: any, next: any) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
+export function requireAuth(handler: Function) {
+  return async (request: NextRequest) => {
+    const user = await getCurrentUser(request)
     
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-
-    const user = await AuthService.getUserFromToken(token)
     if (!user) {
-      return res.status(401).json({ error: 'Invalid token' })
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
 
-    req.user = user
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Authentication failed' })
+    return handler(request, user)
   }
 } 
