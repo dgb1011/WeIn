@@ -8,16 +8,11 @@ type SessionStatus = 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | '
 interface ConsultantProfile {
   id: string
   userId: string
-  status: ConsultantStatus
+  bio: string | null
   specialties: string[]
-  experience: number
   hourlyRate: number
-  bio: string
-  credentials: string[]
+  isActive: boolean
   timezone: string
-  maxSessionsPerDay: number
-  bufferMinutes: number
-  autoApprove: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -91,16 +86,11 @@ export class ConsultantService {
       return {
         id: consultant.id,
         userId: consultant.userId,
-        status: consultant.status as ConsultantStatus,
+        bio: consultant.bio,
         specialties: consultant.specialties || [],
-        experience: consultant.experience || 0,
         hourlyRate: consultant.hourlyRate || 0,
-        bio: consultant.bio || '',
-        credentials: consultant.credentials || [],
+        isActive: consultant.isActive,
         timezone: consultant.timezone || 'UTC',
-        maxSessionsPerDay: consultant.maxSessionsPerDay || 8,
-        bufferMinutes: consultant.bufferMinutes || 15,
-        autoApprove: consultant.autoApprove || false,
         createdAt: consultant.createdAt,
         updatedAt: consultant.updatedAt
       }
@@ -115,16 +105,11 @@ export class ConsultantService {
       const updatedConsultant = await db.consultant.update({
         where: { id: consultantId },
         data: {
-          status: updates.status,
-          specialties: updates.specialties,
-          experience: updates.experience,
-          hourlyRate: updates.hourlyRate,
           bio: updates.bio,
-          credentials: updates.credentials,
+          specialties: updates.specialties,
+          hourlyRate: updates.hourlyRate,
+          isActive: updates.isActive,
           timezone: updates.timezone,
-          maxSessionsPerDay: updates.maxSessionsPerDay,
-          bufferMinutes: updates.bufferMinutes,
-          autoApprove: updates.autoApprove,
           updatedAt: new Date()
         }
       })
@@ -391,16 +376,15 @@ export class ConsultantService {
       const monthlyBreakdown = this.calculateMonthlyBreakdown(sessions)
 
       // Get pending payments (sessions verified but not yet paid)
-      const pendingSessions = await db.consultationSession.count({
+      const completedSessions = await db.consultationSession.findMany({
         where: {
           consultantId,
           status: 'COMPLETED',
-          consultantVerifiedAt: { not: null },
-          paymentProcessed: false
+          consultantVerifiedAt: { not: null }
         }
       })
 
-      const pendingPayments = pendingSessions * (sessions[0]?.consultant.hourlyRate || 0)
+      const pendingPayments = completedSessions.length * (sessions[0]?.consultant.hourlyRate || 0)
 
       // Get last payment date
       const lastPayment = await db.consultantPayment.findFirst({

@@ -10,6 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Core User model
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -22,9 +23,301 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  student     Student?
+  consultant  Consultant?
+  admin       Admin?
+
   @@map("users")
 }
 
+// Student-specific model
+model Student {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kajabiUserId          String?  @unique
+  courseCompletionDate  DateTime
+  totalVerifiedHours    Float    @default(0)
+  totalVideoHours       Float    @default(0)
+  certificationStatus   StudentStatus @default(ENROLLED)
+  preferredSessionLength Int     @default(60)
+  consultationPreferences Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  consultationSessions  ConsultationSession[]
+  studentDocuments      StudentDocument[]
+  sessionHistory        SessionHistory[]
+
+  @@map("students")
+}
+
+// Consultant-specific model
+model Consultant {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio             String?
+  specialties     String[]
+  hourlyRate      Float    @default(150.00)
+  isActive        Boolean  @default(true)
+  timezone        String   @default("UTC")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  consultationSessions    ConsultationSession[]
+  consultantAvailability  ConsultantAvailability[]
+  consultantPayments      ConsultantPayment[]
+
+  @@map("consultants")
+}
+
+// Admin-specific model
+model Admin {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("admin")
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("admins")
+}
+
+// Consultation Sessions
+model ConsultationSession {
+  id                  String        @id @default(cuid())
+  studentId           String
+  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  consultantId        String
+  consultant          Consultant    @relation(fields: [consultantId], references: [id])
+  scheduledStart      DateTime
+  scheduledEnd        DateTime
+  actualStart         DateTime?
+  actualEnd           DateTime?
+  status              SessionStatus @default(SCHEDULED)
+  sessionType         String        @default("VIDEO_CONSULTATION")
+  studentVerifiedAt   DateTime?
+  consultantVerifiedAt DateTime?
+  studentNotes        String?
+  consultantNotes     String?
+  sessionRating       Int?
+  technicalIssuesReported Boolean    @default(false)
+  makeupSessionFor    String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  videoSession        VideoSession?
+
+  @@map("consultation_sessions")
+}
+
+// Video Sessions
+model VideoSession {
+  id                      String   @id @default(cuid())
+  consultationSessionId   String   @unique
+  consultationSession     ConsultationSession @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
+  roomId                  String   @unique
+  recordingEnabled        Boolean  @default(true)
+  recordingUrl            String?
+  recordingDurationSeconds Int?
+  videoQuality            String   @default("720p")
+  connectionQualityAvg    Float?
+  bandwidthUsageMb        Float?
+  technicalIssues         Json?
+  sessionMetadata         Json?
+  createdAt               DateTime @default(now())
+
+  // Relations
+  videoParticipants       VideoParticipant[]
+
+  @@map("video_sessions")
+}
+
+// Video Participants
+model VideoParticipant {
+  id                      String   @id @default(cuid())
+  videoSessionId          String
+  videoSession            VideoSession @relation(fields: [videoSessionId], references: [id], onDelete: Cascade)
+  userId                  String
+  userType                UserType
+  joinTime                DateTime
+  leaveTime               DateTime?
+  totalDurationSeconds    Int?
+  audioQualityAvg         Float?
+  videoQualityAvg         Float?
+  screenShareDurationSeconds Int @default(0)
+  chatMessagesCount       Int @default(0)
+  connectionInterruptions Int @default(0)
+  createdAt               DateTime @default(now())
+
+  @@map("video_participants")
+}
+
+// Consultant Availability
+model ConsultantAvailability {
+  id                  String            @id @default(cuid())
+  consultantId        String
+  consultant          Consultant        @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  availabilityType    AvailabilityType
+  dayOfWeek           Int?
+  specificDate        DateTime?
+  startTime           String
+  endTime             String
+  maxSessions         Int               @default(1)
+  bufferMinutes       Int               @default(15)
+  isAvailable         Boolean           @default(true)
+  bookingWindowDays   Int               @default(30)
+  minimumNoticeHours  Int               @default(24)
+  autoApprove         Boolean           @default(true)
+  timezone            String
+  recurringPattern    Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@map("consultant_availability")
+}
+
+// Student Documents
+model StudentDocument {
+  id                  String        @id @default(cuid())
+  studentId           String
+  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  documentType        DocumentType
+  fileName            String
+  fileSizeBytes       Int
+  filePath            String
+  mimeType            String
+  extractedText       String?
+  uploadTimestamp     DateTime      @default(now())
+  reviewStatus        ReviewStatus  @default(PENDING)
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  versionNumber       Int           @default(1)
+  replacesDocumentId  String?
+  autoValidationScore Float?
+  requiresManualReview Boolean      @default(true)
+  createdAt           DateTime      @default(now())
+
+  @@map("student_documents")
+}
+
+// Session History
+model SessionHistory {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionDate     DateTime
+  sessionDuration Int
+  consultantId    String
+  sessionType     String
+  status          String
+  rating          Int?
+  createdAt       DateTime @default(now())
+
+  @@map("session_history")
+}
+
+// Consultant Payments
+model ConsultantPayment {
+  id              String   @id @default(cuid())
+  consultantId    String
+  consultant      Consultant @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  paymentPeriod   String
+  totalHours      Float
+  hourlyRate      Float
+  totalAmount     Float
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentDate     DateTime?
+  sessionBreakdown Json?
+  createdAt       DateTime @default(now())
+
+  @@map("consultant_payments")
+}
+
+// System Health Metrics
+model SystemHealthMetric {
+  id              String   @id @default(cuid())
+  metricType      String
+  metricValue     Float
+  metricUnit      String?
+  timestamp       DateTime @default(now())
+  additionalData  Json?
+  createdAt       DateTime @default(now())
+
+  @@map("system_health_metrics")
+}
+
+// Notification System Models
+
+// In-App Notifications
+model InAppNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("in_app_notifications")
+}
+
+// Scheduled Notifications
+model ScheduledNotification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  title       String
+  message     String
+  data        Json?
+  priority    String
+  scheduledFor DateTime
+  status      ScheduledNotificationStatus @default(PENDING)
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("scheduled_notifications")
+}
+
+// Notification Logs
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  data      Json?
+  priority  String
+  sentAt    DateTime @default(now())
+
+  @@map("notification_logs")
+}
+
+// User Notification Preferences
+model UserNotificationPreferences {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  emailEnabled  Boolean  @default(true)
+  smsEnabled    Boolean  @default(false)
+  inAppEnabled  Boolean  @default(true)
+  pushEnabled   Boolean  @default(false)
+  quietHours    Json?
+  notificationTypes Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("user_notification_preferences")
+}
+
+// Enums
 enum UserType {
   STUDENT
   CONSULTANT
@@ -35,4 +328,66 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+enum StudentStatus {
+  ENROLLED
+  CONSULTATION_ACCESS_GRANTED
+  IN_PROGRESS
+  PENDING_VERIFICATION
+  READY_FOR_CERTIFICATION
+  CERTIFIED
+  SUSPENDED
+  WITHDRAWN
+}
+
+enum SessionStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+  TECHNICAL_ISSUE
+}
+
+enum AvailabilityType {
+  RECURRING_WEEKLY
+  ONE_TIME
+  BLOCKED_TIME
+  HOLIDAY_BLOCK
+}
+
+enum DocumentType {
+  CONSULTATION_LOG
+  EVALUATION_FORM
+  REFLECTION_PAPER
+  CASE_STUDY
+  ADDITIONAL_REQUIREMENT
+  MAKEUP_DOCUMENTATION
+}
+
+enum ReviewStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+  AUTO_APPROVED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum ScheduledNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
 } 

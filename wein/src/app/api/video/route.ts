@@ -35,8 +35,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ 
         session: videoSession,
-        roomId,
-        joinUrl: videoSession.joinUrl
+        roomId
       })
     }
 

@@ -94,7 +94,7 @@ async function handleRegister({ email, password, firstName, lastName, userType, 
         password: hashedPassword,
         firstName,
         lastName,
-        userType,
+        userType: userType as 'STUDENT' | 'CONSULTANT' | 'ADMIN',
         phone: phone || null,
         status: 'ACTIVE'
       }

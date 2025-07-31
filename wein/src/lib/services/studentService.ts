@@ -1,4 +1,4 @@
-import { prisma } from '../db'
+import { db } from '../db'
 
 // Type definitions for the service
 type StudentStatus = 'ENROLLED' | 'CONSULTATION_ACCESS_GRANTED' | 'IN_PROGRESS' | 'PENDING_VERIFICATION' | 'READY_FOR_CERTIFICATION' | 'CERTIFIED' | 'SUSPENDED' | 'WITHDRAWN'
@@ -54,7 +54,7 @@ interface ConsultantDistribution {
 
 export class StudentService {
   static async getStudentProgress(studentId: string): Promise<StudentProgress> {
-    const sessions = await prisma.consultationSession.findMany({
+    const sessions = await db.consultationSession.findMany({
       where: { studentId },
       include: {
         consultant: {
@@ -115,7 +115,7 @@ export class StudentService {
   }
 
   static async updateStudentStatus(studentId: string, status: StudentStatus): Promise<void> {
-    await prisma.student.update({
+    await db.student.update({
       where: { id: studentId },
       data: { certificationStatus: status }
     })
@@ -133,7 +133,7 @@ export class StudentService {
       where.status = { in: status }
     }
 
-    const sessions = await prisma.consultationSession.findMany({
+    const sessions = await db.consultationSession.findMany({
       where,
       include: {
         consultant: {
@@ -146,7 +146,7 @@ export class StudentService {
       skip: offset
     })
 
-    const total = await prisma.consultationSession.count({ where })
+    const total = await db.consultationSession.count({ where })
 
     return {
       sessions,

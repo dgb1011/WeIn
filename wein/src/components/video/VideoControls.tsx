@@ -13,7 +13,7 @@ import {
   PhoneOff,
   Settings,
   MoreVertical,
-  Record,
+  Circle,
   Square,
   MessageSquare,
   Users
@@ -95,7 +95,7 @@ export default function VideoControls({
         className="rounded-full w-12 h-12"
         title={isRecording ? "Stop recording" : "Start recording"}
       >
-        {isRecording ? <Square className="h-5 w-5" /> : <Record className="h-5 w-5" />}
+        {isRecording ? <Square className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
       </Button>
 
       {/* Chat Toggle */}

@@ -3,9 +3,10 @@ import { StudentService } from '@/lib/services/studentService'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const studentId = params.id
     
     const progress = await StudentService.getStudentProgress(studentId)
