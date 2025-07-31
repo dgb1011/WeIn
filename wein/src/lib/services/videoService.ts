@@ -1,4 +1,5 @@
 import { db } from '../db'
+import { UserType } from '@prisma/client'
 
 // Type definitions for the video service
 type VideoQuality = '480p' | '720p' | '1080p'
@@ -176,7 +177,13 @@ export class VideoService {
           videoQuality: quality,
           sessionMetadata: {
             maxParticipants,
-            qualitySettings: this.qualityPresets[quality],
+            qualitySettings: {
+              video: this.qualityPresets[quality].video,
+              audio: this.qualityPresets[quality].audio,
+              bandwidth: this.qualityPresets[quality].bandwidth,
+              frameRate: this.qualityPresets[quality].frameRate,
+              bitrate: this.qualityPresets[quality].bitrate
+            },
             createdAt: new Date()
           }
         }
@@ -257,9 +264,8 @@ export class VideoService {
         data: {
           videoSessionId: videoRoom.id,
           userId,
-          userType,
-          joinTime: new Date(),
-          isActive: true
+          userType: userType as UserType,
+          joinTime: new Date()
         }
       })
 
@@ -518,12 +524,15 @@ export class VideoService {
       analytics.recommendations = this.generateRecommendations(analytics)
 
       // Save analytics to database
-      await db.systemHealthMetrics.create({
+      await db.systemHealthMetric.create({
         data: {
-          metricType: 'video_session_analytics',
+          metricType: 'video_session_quality',
           metricValue: analytics.overallQualityScore,
           metricUnit: 'score',
-          additionalData: analytics
+          additionalData: {
+            sessionId: roomId,
+            analytics: analytics
+          }
         }
       })
 
@@ -621,9 +630,9 @@ export class VideoService {
 
   static async getSessionAnalytics(sessionId: string): Promise<VideoAnalytics | null> {
     try {
-      const metrics = await db.systemHealthMetrics.findFirst({
+      const metrics = await db.systemHealthMetric.findFirst({
         where: {
-          metricType: 'video_session_analytics',
+          metricType: 'video_session_quality',
           additionalData: {
             path: ['sessionId'],
             equals: sessionId

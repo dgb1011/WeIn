@@ -205,7 +205,7 @@ export class SchedulingService {
     try {
       // Get all consultants
       const consultants = await db.consultant.findMany({
-        where: { status: 'ACTIVE' },
+        where: { isActive: true },
         include: { user: true }
       })
 
@@ -443,10 +443,10 @@ export class SchedulingService {
       where: { id: bookingRequest.consultantId }
     })
 
-    if (consultant && hoursUntilSession < (consultant.minimumNoticeHours || 24)) {
+    if (consultant && hoursUntilSession < 24) { // Default 24 hours notice
       conflicts.push({
         type: 'MINIMUM_NOTICE',
-        message: `Booking must be made at least ${consultant.minimumNoticeHours || 24} hours in advance`
+        message: `Booking must be made at least 24 hours in advance`
       })
     }
 

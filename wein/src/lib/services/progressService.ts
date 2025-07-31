@@ -85,7 +85,7 @@ export class ProgressService {
       const sessions = await this.getStudentSessions(studentId, filters)
       
       // Calculate verified hours
-      const verifiedSessions = sessions.filter(s => s.status === 'COMPLETED' && s.verifiedAt)
+      const verifiedSessions = sessions.filter(s => s.status === 'COMPLETED' && s.studentVerifiedAt && s.consultantVerifiedAt)
       const totalVerifiedHours = verifiedSessions.reduce((total, session) => {
         return total + this.calculateSessionDuration(session)
       }, 0)
@@ -93,7 +93,8 @@ export class ProgressService {
       // Calculate pending hours
       const pendingSessions = sessions.filter(s => s.status === 'SCHEDULED' || s.status === 'IN_PROGRESS')
       const totalPendingHours = pendingSessions.reduce((total, session) => {
-        return total + (session.scheduledDuration || 60) / 60
+        const duration = (session.scheduledEnd.getTime() - session.scheduledStart.getTime()) / (1000 * 60 * 60)
+        return total + duration
       }, 0)
 
       // Calculate projected hours (based on weekly average)
