@@ -33,7 +33,6 @@ interface VideoParticipant {
   screenShareDuration: number
   chatMessagesCount: number
   connectionInterruptions: number
-  isActive: boolean
 }
 
 interface VideoSession {
@@ -294,7 +293,6 @@ export class VideoService {
         screenShareDuration: 0,
         chatMessagesCount: 0,
         connectionInterruptions: 0,
-        isActive: true
       })
 
       // Start recording if enabled
@@ -321,8 +319,7 @@ export class VideoService {
           userId
         },
         data: {
-          leaveTime: new Date(),
-          isActive: false
+          leaveTime: new Date()
         }
       })
 
@@ -531,7 +528,7 @@ export class VideoService {
           metricUnit: 'score',
           additionalData: {
             sessionId: roomId,
-            analytics: analytics
+            analytics: JSON.parse(JSON.stringify(analytics))
           }
         }
       })
@@ -641,7 +638,7 @@ export class VideoService {
         orderBy: { timestamp: 'desc' }
       })
 
-      return metrics?.additionalData as VideoAnalytics || null
+      return metrics?.additionalData as unknown as VideoAnalytics || null
     } catch (error) {
       console.error('Error fetching session analytics:', error)
       return null
